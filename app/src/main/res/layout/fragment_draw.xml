@@ -1,0 +1,169 @@
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@android:color/white">
+
+    <!-- Top AI guess section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:id="@+id/aiIcon"
+            android:layout_width="129dp"
+            android:layout_height="136dp"
+            android:layout_marginEnd="12dp"
+            android:contentDescription="AI Icon"
+            android:src="@drawable/bearthinkingpngnew" />
+
+        <TextView
+            android:id="@+id/aiGuessText"
+            android:layout_width="0dp"
+            android:layout_height="89dp"
+            android:layout_weight="1"
+            android:text="Mr. Bear is guessing..."
+            android:textColor="@android:color/black"
+            android:textSize="26sp" />
+    </LinearLayout>
+
+    <!-- Drawing canvas (slightly smaller height) -->
+    <com.example.guesstheobject.ui.DrawingView
+        android:id="@+id/drawView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.45"
+        android:background="@android:color/white"/>
+
+    <!-- Bottom horizontal toolbar slightly above nav buttons -->
+    <LinearLayout
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:gravity="center"
+        android:background="@android:color/darker_gray"
+        android:layout_marginBottom="50dp"> <!-- more margin to stay above nav -->
+
+        <ImageButton
+            android:id="@+id/btnClear"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_clear"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Clear"
+            android:layout_margin="4dp"/>
+
+        <ImageButton
+            android:id="@+id/btnEraser"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_eraser"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Eraser"
+            android:layout_margin="4dp"/>
+
+        <ImageButton
+            android:id="@+id/btnColor"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_color"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Color"
+            android:layout_margin="4dp"/>
+
+        <ImageButton
+            android:id="@+id/btnWidth"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_pencil"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Width"
+            android:layout_margin="4dp"/>
+
+        <Button
+            android:id="@+id/btnSend"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:text="Guess It"
+            android:layout_marginStart="16dp"/>
+    </LinearLayout>
+    <!-- AI Result Layout -->
+    <LinearLayout
+        android:id="@+id/resultLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone"
+        android:padding="16dp">
+
+        <ImageView
+            android:id="@+id/resultAiIcon"
+            android:layout_width="160dp"
+            android:layout_height="160dp"
+            android:src="@drawable/bearnormalphotopng"
+            android:contentDescription="AI Bear"/>
+
+        <TextView
+            android:id="@+id/resultText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="It's a Tree 🌳"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/black"
+            android:layout_marginTop="16dp"/>
+
+        <TextView
+            android:id="@+id/feedbackQuestion"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Was my guess correct or not?"
+            android:textSize="18sp"
+            android:layout_marginTop="20dp"/>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <Button
+                android:id="@+id/btnClose"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Correct"/>
+
+            <Button
+                android:id="@+id/btnNotClose"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Incorrect"
+                android:layout_marginStart="12dp"/>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/feedbackResult"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="16sp"
+            android:textColor="@android:color/holo_green_dark"
+            android:layout_marginTop="10dp"/>
+
+        <Button
+            android:id="@+id/btnDrawAgain"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Draw Again"
+            android:layout_marginTop="24dp"/>
+    </LinearLayout>
+
+
+</LinearLayout>

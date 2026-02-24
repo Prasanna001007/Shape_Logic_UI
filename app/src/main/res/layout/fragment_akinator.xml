@@ -1,0 +1,114 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Background -->
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/homepage" />
+
+    <!-- Main layout -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:gravity="center">
+
+        <!-- AI icon / expression -->
+        <ImageView
+            android:id="@+id/aiIcon"
+            android:layout_width="300dp"
+            android:layout_height="300dp"
+            android:src="@drawable/bearnormalphotopng"
+            android:layout_marginBottom="40dp"
+            android:contentDescription="AI Icon" />
+
+        <!-- Question Text -->
+        <TextView
+            android:id="@+id/questionText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Loading question..."
+            android:textColor="@color/black"
+            android:textSize="26sp"
+            android:gravity="center"
+            android:layout_marginBottom="24dp" />
+
+        <!-- Yes / No Buttons -->
+        <Button
+            android:id="@+id/btnYes"
+            android:layout_width="200dp"
+            android:layout_height="wrap_content"
+            android:text="Yes"
+            android:textSize="26sp"
+            android:layout_marginBottom="12dp"/>
+
+        <Button
+            android:id="@+id/btnNo"
+            android:layout_width="200dp"
+            android:layout_height="wrap_content"
+            android:text="No"
+            android:textSize="26sp"
+            android:layout_marginBottom="12dp"/>
+
+        <!-- After-guess UI (initially hidden) -->
+
+        <!-- How close was my guess? -->
+        <!-- Analyzing your answers -->
+        <TextView
+            android:id="@+id/analyzingText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textColor="@color/black"
+            android:textSize="24sp"
+            android:gravity="center"
+            android:layout_marginBottom="24dp"
+            android:visibility="gone"/>
+
+        <TextView
+            android:id="@+id/guessText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Was my guess correct?"
+            android:textColor="@color/black"
+            android:textSize="24sp"
+            android:gravity="center"
+            android:layout_marginBottom="24dp"
+            android:visibility="gone" />
+
+        <!-- Close / Not Close buttons -->
+        <Button
+            android:id="@+id/btnClose"
+            android:layout_width="200dp"
+            android:layout_height="wrap_content"
+            android:text="Correct"
+            android:textSize="26sp"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone"/>
+
+        <Button
+            android:id="@+id/btnNotClose"
+            android:layout_width="200dp"
+            android:layout_height="wrap_content"
+            android:text="Incorrect"
+            android:textSize="26sp"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone"/>
+
+        <!-- Bear Reaction Text -->
+        <TextView
+            android:id="@+id/reactionText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textColor="@color/black"
+            android:textSize="22sp"
+            android:gravity="center"
+            android:layout_marginTop="20dp"
+            android:visibility="gone"/>
+    </LinearLayout>
+</FrameLayout>
