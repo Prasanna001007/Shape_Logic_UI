@@ -3,6 +3,7 @@ package com.example.guesstheobject.ui
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
@@ -11,6 +12,11 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import com.example.guesstheobject.R
+import org.json.JSONObject
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlin.concurrent.thread
 
 class AkinatorFragment : Fragment() {
 
@@ -20,39 +26,20 @@ class AkinatorFragment : Fragment() {
     private lateinit var analyzingText: TextView
     private lateinit var btnYes: Button
     private lateinit var btnNo: Button
-    private lateinit var btnClose: Button
-    private lateinit var btnNotClose: Button
     private lateinit var aiIcon: ImageView
 
-    private val questions = listOf(
-        "Is the object a non-living thing",
-        "Is it a plant?",
-        "Is it a domestic animal?",
-        "Is it a wild animal?",
-        "Is it cold-blooded?",
-        "Is it a bird?",
-        "Is it an herbivore?",
-        "Does it belong to the cat family (Felidae)?",
-        "Is it larger than a lion?",
-        "Does it roar?",
-        "Is it mainly adapted for extreme speed like a cheetah?",
-        "Does it have a spotted coat pattern?",
-        "Are the spots solid black (not rosettes)?"
-    )
+    private val handler = Handler(Looper.getMainLooper())
 
-    private var currentIndex = 0
+    private val baseUrl = "http://192.168.101.4:3000/api/akinator"
 
-    // AI expressions for every 5 questions
-    private val aiExpressions = listOf(
-        R.drawable.bearnormalphotopng,   // 0-4 questions
-        R.drawable.bearthinkingpngnew,      // 5-9 questions
-        R.drawable.beardeeplythinkingpng // 10+ questions
-    )
+    private var currentFeature: String? = null
+    private var sessionId: String? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
+
         val view = inflater.inflate(R.layout.fragment_akinator, container, false)
 
         aiIcon = view.findViewById(R.id.aiIcon)
@@ -62,83 +49,121 @@ class AkinatorFragment : Fragment() {
         analyzingText = view.findViewById(R.id.analyzingText)
         btnYes = view.findViewById(R.id.btnYes)
         btnNo = view.findViewById(R.id.btnNo)
-        btnClose = view.findViewById(R.id.btnClose)
-        btnNotClose = view.findViewById(R.id.btnNotClose)
 
-        // Initially hide after-guess UI
-        guessText.visibility = View.GONE
-        btnClose.visibility = View.GONE
-        btnNotClose.visibility = View.GONE
-        reactionText.visibility = View.GONE
-        analyzingText.visibility = View.GONE
+        btnYes.text = "Yes"
+        btnNo.text = "No"
 
-        updateQuestion()
+        startGame()
 
-        btnYes.setOnClickListener { nextQuestion() }
-        btnNo.setOnClickListener { nextQuestion() }
-
-        btnClose.setOnClickListener {
-            reactionText.text = "Thanks , It motivates me"
-            aiIcon.setImageResource(R.drawable.bearnormalphotopng)
-            btnClose.isEnabled = false
-            btnNotClose.isEnabled = false
-        }
-
-        btnNotClose.setOnClickListener {
-            reactionText.text = "I will try better next time."
-            aiIcon.setImageResource(R.drawable.beardeeplythinkingpng)
-            btnClose.isEnabled = false
-            btnNotClose.isEnabled = false
-        }
+        btnYes.setOnClickListener { submitAnswer(true) }
+        btnNo.setOnClickListener { submitAnswer(false) }
 
         return view
     }
 
-    private fun nextQuestion() {
-        currentIndex++
-        if (currentIndex < questions.size) {
-            updateQuestion()
-        } else {
-            // Hide Yes/No buttons & question text
-            btnYes.visibility = View.GONE
-            btnNo.visibility = View.GONE
-            questionText.visibility = View.GONE
+    // ---------------- START GAME ----------------
+    private fun startGame() {
+        analyzingText.visibility = View.VISIBLE
+        analyzingText.text = "Thinking..."
+        aiIcon.setImageResource(R.drawable.bearthinkingpngnew)
 
-            // Show analyzing stage
-            analyzingText.text = "Analyzing your answers..."
-            analyzingText.visibility = View.VISIBLE
-            aiIcon.setImageResource(R.drawable.bearthinkingpngnew)
+        thread {
+            try {
+                val url = URL("$baseUrl/start")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.doOutput = true
 
-            // Delay to simulate thinking (1.5 seconds)
-            Handler(Looper.getMainLooper()).postDelayed({
-                // Hide analyzing
-                analyzingText.visibility = View.GONE
+                val responseText = connection.inputStream.bufferedReader().readText()
+                val json = JSONObject(responseText)
 
-                // Show final guess and after-guess UI
-                questionText.text = "I guess your object is: Leopard"
-                questionText.visibility = View.VISIBLE
+                handler.post {
+                    analyzingText.visibility = View.GONE
 
-                guessText.visibility = View.VISIBLE
-                btnClose.visibility = View.VISIBLE
-                btnNotClose.visibility = View.VISIBLE
-                reactionText.visibility = View.VISIBLE
+                    if (json.getString("status") == "continue") {
+                        sessionId = json.getString("sessionId")
+                        currentFeature = json.getString("feature")
+                        questionText.text = json.getString("question")
+                    } else {
+                        questionText.text = "Failed to start game"
+                    }
+                }
 
-                // Reset AI icon to neutral
-                aiIcon.setImageResource(R.drawable.bearnormalphotopng)
-            }, 1500)
+                connection.disconnect()
+
+            } catch (e: Exception) {
+                handler.post {
+                    questionText.text = "Failed to connect to backend: ${e.message}"
+                    analyzingText.visibility = View.GONE
+                }
+            }
         }
     }
 
-    private fun updateQuestion() {
-        questionText.text = questions[currentIndex]
+    // ---------------- SUBMIT ANSWER ----------------
+    private fun submitAnswer(answer: Boolean) {
 
-        // Change AI icon based on how many questions have passed
-        aiIcon.setImageResource(
-            when {
-                currentIndex < 4 -> aiExpressions[0]
-                currentIndex < 8 -> aiExpressions[1]
-                else -> aiExpressions[2]
+        if (currentFeature == null || sessionId == null) return
+
+        analyzingText.visibility = View.VISIBLE
+        analyzingText.text = "Analyzing..."
+        aiIcon.setImageResource(R.drawable.beardeeplythinkingpng)
+
+        thread {
+            try {
+                val url = URL("$baseUrl/answer")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.doOutput = true
+                connection.setRequestProperty("Content-Type", "application/json")
+
+                val jsonBody = JSONObject()
+                jsonBody.put("feature", currentFeature)
+                jsonBody.put("answer", answer)
+                jsonBody.put("sessionId", sessionId)
+
+                val writer = OutputStreamWriter(connection.outputStream)
+                writer.write(jsonBody.toString())
+                writer.flush()
+                writer.close()
+
+                val responseText = connection.inputStream.bufferedReader().readText()
+                val json = JSONObject(responseText)
+
+                handler.post {
+                    analyzingText.visibility = View.GONE
+
+                    when (json.getString("status")) {
+
+                        "continue" -> {
+                            currentFeature = json.getString("feature")
+                            questionText.text = json.getString("question")
+                        }
+
+                        "win" -> {
+                            val guess = json.getString("guess")
+                            questionText.text = "I guess: $guess!"
+                            aiIcon.setImageResource(R.drawable.bearnormalphotopng)
+                            btnYes.visibility = View.GONE
+                            btnNo.visibility = View.GONE
+                        }
+
+                        "fail" -> {
+                            questionText.text = "I couldn't guess your animal."
+                            btnYes.visibility = View.GONE
+                            btnNo.visibility = View.GONE
+                        }
+                    }
+                }
+
+                connection.disconnect()
+
+            } catch (e: Exception) {
+                handler.post {
+                    questionText.text = "Failed to connect to backend: ${e.message}"
+                    analyzingText.visibility = View.GONE
+                }
             }
-        )
+        }
     }
 }

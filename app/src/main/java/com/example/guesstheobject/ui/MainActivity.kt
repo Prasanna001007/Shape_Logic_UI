@@ -4,11 +4,15 @@ import android.media.MediaPlayer
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.View
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import com.example.guesstheobject.R
 import com.example.guesstheobject.databinding.ActivityMainBinding
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
 
@@ -37,6 +41,8 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        testBackendConnection()
+
         // ----------------- MediaPlayer Setup -----------------
         bgMusic = MediaPlayer.create(this, R.raw.backgroundmusic).apply {
             isLooping = true
@@ -63,7 +69,21 @@ class MainActivity : AppCompatActivity() {
         setupBackPressHandler()
     }
 
-    // ---------------- Back Press Dispatcher ----------------
+    fun testBackendConnection() {
+        thread {
+            try {
+                val url = URL("http://192.168.101.4:3000/animals")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                val responseCode = connection.responseCode
+                Log.d("API_TEST", "Zoo Backend Response Code: $responseCode")
+                connection.disconnect()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     private fun setupBackPressHandler() {
         onBackPressedDispatcher.addCallback(
             this,
@@ -89,7 +109,7 @@ class MainActivity : AppCompatActivity() {
             bgMusic.pause()
 
             supportFragmentManager.beginTransaction()
-                .replace(R.id.flFragment, AkinatorFragment())
+                .replace(R.id.flFragment, AkinatorFragment())  // <-- updated to ZooFragment
                 .addToBackStack(null)
                 .commit()
         }
