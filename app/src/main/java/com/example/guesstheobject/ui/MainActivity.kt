@@ -1,5 +1,6 @@
 package com.example.guesstheobject.ui
 
+import ModeSelectionFragment
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.os.Handler
@@ -40,6 +41,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        binding.flFragment.visibility = View.GONE
 
         testBackendConnection()
 
@@ -89,9 +92,20 @@ class MainActivity : AppCompatActivity() {
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
+                    // First, let DrawFragment handle its own internal screen stack
+                    val currentFragment = supportFragmentManager
+                        .findFragmentById(R.id.flFragment)
+
+                    if (currentFragment is DrawFragment && currentFragment.onBackPressed()) {
+                        // DrawFragment consumed the back press (went to previous sub-screen)
+                        return
+                    }
+
+                    // Otherwise handle at Activity level (go back to main menu)
                     if (supportFragmentManager.backStackEntryCount > 0) {
                         supportFragmentManager.popBackStack()
                         binding.mainMenu.visibility = View.VISIBLE
+                        binding.flFragment.visibility = View.GONE
                         bgMusic.start()
                     } else {
                         isEnabled = false
@@ -104,23 +118,31 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupButtons() {
         binding.btnAkinatorMode.setOnClickListener {
+
             playClickSound()
+
             binding.mainMenu.visibility = View.GONE
+            binding.flFragment.visibility = View.VISIBLE
+
             bgMusic.pause()
 
             supportFragmentManager.beginTransaction()
-                .replace(R.id.flFragment, AkinatorFragment())  // <-- updated to ZooFragment
+                .replace(R.id.flFragment, AkinatorFragment())
                 .addToBackStack(null)
                 .commit()
         }
 
         binding.btnDrawingMode.setOnClickListener {
+
             playClickSound()
+
             binding.mainMenu.visibility = View.GONE
+            binding.flFragment.visibility = View.VISIBLE
+
             bgMusic.pause()
 
             supportFragmentManager.beginTransaction()
-                .replace(R.id.flFragment, DrawFragment())
+                .replace(R.id.flFragment, ModeSelectionFragment())
                 .addToBackStack(null)
                 .commit()
         }

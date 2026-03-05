@@ -1,9 +1,8 @@
 package com.example.guesstheobject.ui
 
-import android.graphics.Paint
-import android.graphics.Path
+import android.graphics.PointF
 
+// Represents a single stroke of a letter
 data class Stroke(
-    val path: Path,
-    val paint: Paint
+    val points: List<PointF>
 )
