@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+
+    <!-- Dotted outline for letter U -->
+    <path android:fillColor="#CCCCCC" android:pathData="M16.0,10.0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+    <path android:fillColor="#CCCCCC" android:pathData="M16.0,25.0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+    <path android:fillColor="#CCCCCC" android:pathData="M16.0,40.0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+    <path android:fillColor="#CCCCCC" android:pathData="M16.0,55.0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+    <path android:fillColor="#CCCCCC" android:pathData="M16.0,70.0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+    <path android:fillColor="#CCCCCC" android:pathData="M16.0,70.0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+    <path android:fillColor="#CCCCCC" android:pathData="M22.2,82.0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+    <path android:fillColor="#CCCCCC" android:pathData="M35.4,87.7 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+    <path android:fillColor="#CCCCCC" android:pathData="M49.6,88.6 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+    <path android:fillColor="#CCCCCC" android:pathData="M63.8,85.4 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+    <path android:fillColor="#CCCCCC" android:pathData="M74.6,76.1 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+    <path android:fillColor="#CCCCCC" android:pathData="M76.0,70.0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+    <path android:fillColor="#CCCCCC" android:pathData="M76.0,70.0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+    <path android:fillColor="#CCCCCC" android:pathData="M76.0,55.0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+    <path android:fillColor="#CCCCCC" android:pathData="M76.0,40.0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+    <path android:fillColor="#CCCCCC" android:pathData="M76.0,25.0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+    <path android:fillColor="#CCCCCC" android:pathData="M76.0,10.0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+
+</vector>

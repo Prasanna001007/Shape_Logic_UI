@@ -104,9 +104,11 @@ class MainActivity : AppCompatActivity() {
                     // Otherwise handle at Activity level (go back to main menu)
                     if (supportFragmentManager.backStackEntryCount > 0) {
                         supportFragmentManager.popBackStack()
-                        binding.mainMenu.visibility = View.VISIBLE
-                        binding.flFragment.visibility = View.GONE
-                        bgMusic.start()
+                        if (supportFragmentManager.backStackEntryCount == 0) {
+                            binding.mainMenu.visibility = View.VISIBLE
+                            binding.flFragment.visibility = View.GONE
+                            bgMusic.start()
+                        }
                     } else {
                         isEnabled = false
                         onBackPressedDispatcher.onBackPressed()

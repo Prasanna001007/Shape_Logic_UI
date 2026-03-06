@@ -82,19 +82,18 @@ class LearnFragment : Fragment(R.layout.fragment_learn) {
      * Otherwise move to the next letter.
      */
     private fun onLetterCompleted(letter: Letter) {
-        progressManager.advanceTries(letter)
+        val completedTries = progressManager.attempt + 1
 
-        if (progressManager.attempt < maxRounds) {
-            // Same letter, next round — more strokes pre-drawn
-            val round = progressManager.attempt + 1
+        if (completedTries < maxRounds && completedTries < letter.strokes.size) {
+            progressManager.advanceTries(letter)
             Snackbar.make(
                 requireView(),
-                "Great! Now try round $round — watch the blue strokes! 💙",
+                "Great! Now try round ${progressManager.attempt + 1} — watch the blue strokes! 💙",
                 Snackbar.LENGTH_SHORT
             ).show()
             loadLetter()
         } else {
-            // Move on to next letter
+            progressManager.advanceTries(letter)
             Snackbar.make(
                 requireView(),
                 "⭐ Well done! Moving to ${getNextLetterChar()}!",
@@ -110,26 +109,25 @@ class LearnFragment : Fragment(R.layout.fragment_learn) {
      * After 3 failed attempts, skip to next letter.
      */
     private fun onStrokeFailed() {
-        if (strokeAttempts >= 3) {
-            strokeAttempts = 0
-            Snackbar.make(
-                requireView(),
-                "No worries! Let's try ${getNextLetterChar()} 😊",
-                Snackbar.LENGTH_SHORT
-            ).show()
-            progressManager.nextLetter()
-            loadLetter()
-        } else {
-            val remaining = 3 - strokeAttempts
+        strokeAttempts++
+        val remaining = 3 - strokeAttempts
+        if (remaining > 0) {
             Snackbar.make(
                 requireView(),
                 "Oops! Try again — $remaining tries left 💪",
                 Snackbar.LENGTH_SHORT
             ).show()
-            drawView.clearUserStrokesOnly()
+        } else {
+            strokeAttempts = 0
+            Snackbar.make(
+                requireView(),
+                "No worries, let's try that again! 😊",
+                Snackbar.LENGTH_SHORT
+            ).show()
         }
+        // Always clear and stay on same letter, same round
+        drawView.clearUserStrokesOnly()
     }
-
     // ─────────────────────────────────────────────────────
     // UI HELPERS
     // ─────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import kotlin.math.pow
+import androidx.core.view.doOnLayout
 import kotlin.math.sqrt
 
 class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) {
@@ -16,9 +17,10 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
     private var currentMode = Mode.FREE
     private var currentLetter: Letter? = null
     private var currentStrokeIndex = 0
+    private var isTransitioning = false
 
     // Tolerance in pixels for stroke endpoint validation
-    private val tolerance = 80f
+    private val tolerance = 60f
 
     // ── Paint for user drawing ────────────────────────────
     private val userPaint = Paint().apply {
@@ -31,10 +33,8 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
     }
 
     // ── Paint for pre-drawn scaffold strokes ─────────────
-    // Separate paint so scaffold strokes are visually distinct
-    // and cannot be erased by the user
     private val scaffoldPaint = Paint().apply {
-        color = Color.rgb(100, 149, 237) // cornflower blue — clear but non-intrusive
+        color = Color.rgb(100, 149, 237)
         strokeWidth = 14f
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
@@ -43,7 +43,7 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         alpha = 180
     }
 
-    // ── Paint for letter outline (ghost guide) ────────────
+    // ── Paint for letter outline ghost guide ──────────────
     private val outlinePaint = Paint().apply {
         color = Color.LTGRAY
         strokeWidth = 18f
@@ -55,8 +55,8 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
     }
 
     // ── Separate paths ────────────────────────────────────
-    private val userPath = Path()       // user's live drawing — can be cleared
-    private val scaffoldPath = Path()   // pre-drawn helper strokes — never cleared by user
+    private val userPath = Path()       // user's live drawing
+    private val scaffoldPath = Path()   // pre-drawn helper strokes
 
     // ── Callbacks ─────────────────────────────────────────
     var onLetterCompletedListener: (() -> Unit)? = null
@@ -71,49 +71,32 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         clearAll()
     }
 
-    /**
-     * Used by LearnFragment — sets the letter starting from round 0.
-     * Delegates to setLearningLetter with tries=0.
-     */
     fun setLetter(letter: Letter?) {
         if (letter == null) return
         setLearningLetter(letter, 0)
     }
 
-    /** Full clear — both user and scaffold paths */
-    fun clear() {
-        clearAll()
-    }
+    fun clear() { clearAll() }
 
-    /** Only clear the user's strokes — scaffold remains */
     fun clearUserStrokesOnly() {
         userPath.reset()
         invalidate()
     }
 
-    fun enableEraser() {
-        userPaint.color = Color.WHITE
-    }
+    fun enableEraser() { userPaint.color = Color.WHITE }
+    fun setPaintColor(color: Int) { userPaint.color = color }
+    fun setStrokeWidth(width: Float) { userPaint.strokeWidth = width }
 
-    fun setPaintColor(color: Int) {
-        userPaint.color = color
-    }
-
-    fun setStrokeWidth(width: Float) {
-        userPaint.strokeWidth = width
-    }
-
-    /**
-     * Called when entering Learn Mode for a letter.
-     * [tries] = how many rounds the user has done for this letter.
-     * Pre-draws that many strokes as scaffold.
-     */
     fun setLearningLetter(letter: Letter, tries: Int = 0) {
         currentLetter = letter
-        // The stroke the user needs to draw next
-        currentStrokeIndex = tries.coerceAtMost(letter.strokes.size - 1)
+        currentStrokeIndex = tries
+        isTransitioning = false
         clearAll()
-        preDrawScaffoldStrokes(letter, tries)
+        if (width > 0 && height > 0) {
+            preDrawScaffoldStrokes(letter, tries)
+        } else {
+            doOnLayout { preDrawScaffoldStrokes(letter, tries) }
+        }
     }
 
     // ─────────────────────────────────────────────────────
@@ -127,31 +110,57 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
     }
 
     /**
-     * Pre-draws [tries] strokes into scaffoldPath.
-     * These are shown in blue to help the child know what's already done.
+     * Builds an Android Path from a Stroke using the correct
+     * drawing primitive for each segment type (lineTo or cubicTo).
+     * All normalized coordinates are scaled to canvas pixels.
+     */
+    private fun buildPath(stroke: Stroke): Path {
+        val path = Path()
+        if (width == 0 || height == 0) return path
+
+        val startX = stroke.start.x * width
+        val startY = stroke.start.y * height
+        path.moveTo(startX, startY)
+
+        for (segment in stroke.segments) {
+            when (segment) {
+                is LineTo -> {
+                    path.lineTo(
+                        segment.point.x * width,
+                        segment.point.y * height
+                    )
+                }
+                is CubicTo -> {
+                    path.cubicTo(
+                        segment.cp1.x * width,  segment.cp1.y * height,
+                        segment.cp2.x * width,  segment.cp2.y * height,
+                        segment.end.x * width,  segment.end.y * height
+                    )
+                }
+            }
+        }
+        return path
+    }
+
+    /**
+     * Pre-draws [tries] completed strokes into scaffoldPath in blue.
      */
     private fun preDrawScaffoldStrokes(letter: Letter, tries: Int) {
         scaffoldPath.reset()
         for (i in 0 until tries.coerceAtMost(letter.strokes.size)) {
-            val stroke = letter.strokes[i]
-            val scaled = scaleStroke(stroke)
-            if (scaled.isNotEmpty()) {
-                scaffoldPath.moveTo(scaled.first().x, scaled.first().y)
-                scaled.forEach { p -> scaffoldPath.lineTo(p.x, p.y) }
-            }
+            scaffoldPath.addPath(buildPath(letter.strokes[i]))
         }
         invalidate()
     }
 
     /**
-     * Scales normalized stroke points (0f–1f) to actual canvas pixel coordinates.
-     * Must be called after the view has been laid out (width/height > 0).
+     * Returns the scaled start and end pixel points of a stroke.
+     * Used for validation and arrow drawing.
      */
-    private fun scaleStroke(stroke: Stroke): List<PointF> {
-        if (width == 0 || height == 0) return emptyList()
-        return stroke.points.map { p ->
-            PointF(p.x * width, p.y * height)
-        }
+    private fun getScaledEndpoints(stroke: Stroke): Pair<PointF, PointF> {
+        val start = PointF(stroke.start.x * width, stroke.start.y * height)
+        val end = stroke.endPoint.let { PointF(it.x * width, it.y * height) }
+        return Pair(start, end)
     }
 
     // ─────────────────────────────────────────────────────
@@ -162,55 +171,129 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
         super.onDraw(canvas)
 
         if (currentMode == Mode.LEARN && currentLetter != null) {
-            // Draw full letter outline as a faint ghost guide
+            // Faint full letter outline
             drawLetterOutline(canvas)
 
-            // Draw scaffold (pre-completed strokes) in blue
+            // Blue scaffold strokes
             canvas.drawPath(scaffoldPath, scaffoldPaint)
 
-            // Draw arrow for the current stroke the user needs to draw
-            val strokeIdx = currentStrokeIndex.coerceAtMost(currentLetter!!.strokes.size - 1)
-            val scaledStroke = Stroke(scaleStroke(currentLetter!!.strokes[strokeIdx]))
-            arrowAnimator.drawArrow(canvas, scaledStroke)
+            // Arrow for current stroke
+            if (currentStrokeIndex < currentLetter!!.strokes.size) {
+                val currentStroke = currentLetter!!.strokes[currentStrokeIndex]
+                arrowAnimator.drawArrow(canvas, currentStroke, width, height)
+            }
         }
 
-        // Always draw user path on top
         canvas.drawPath(userPath, userPaint)
     }
 
-    /**
-     * Draws the entire letter as a very faint outline so the child
-     * can see the overall shape they're working towards.
-     */
     private fun drawLetterOutline(canvas: Canvas) {
         val letter = currentLetter ?: return
         for (stroke in letter.strokes) {
-            val scaled = scaleStroke(stroke)
-            if (scaled.isEmpty()) continue
-            val path = Path()
-            path.moveTo(scaled.first().x, scaled.first().y)
-            scaled.forEach { p -> path.lineTo(p.x, p.y) }
-            canvas.drawPath(path, outlinePaint)
+            drawDottedStroke(canvas, stroke)
         }
     }
 
+    private fun drawDottedStroke(canvas: Canvas, stroke: Stroke) {
+        if (width == 0 || height == 0) return
+
+        val dotPaint = Paint().apply {
+            color = Color.rgb(200, 200, 200)
+            style = Paint.Style.FILL
+            isAntiAlias = true
+        }
+
+        val dotRadius = minOf(width, height) * 0.030f
+        val dotSpacing = minOf(width, height) * 0.80f
+        // Sample points along the stroke and draw a dot every dotSpacing pixels
+        val points = sampleStrokePoints(stroke, 500)
+        var accumulated = 0f
+        var lastDotX = -999f
+        var lastDotY = -999f
+
+        for (pt in points) {
+            if (lastDotX < -998f) {
+                canvas.drawCircle(pt.x, pt.y, dotRadius, dotPaint)
+                lastDotX = pt.x
+                lastDotY = pt.y
+                continue
+            }
+            val dx = pt.x - lastDotX
+            val dy = pt.y - lastDotY
+            accumulated += Math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
+            if (accumulated >= dotSpacing) {
+                canvas.drawCircle(pt.x, pt.y, dotRadius, dotPaint)
+                lastDotX = pt.x
+                lastDotY = pt.y
+                accumulated = 0f
+            }
+        }
+    }
+
+    private fun sampleStrokePoints(stroke: Stroke, samples: Int): List<PointF> {
+        val result = mutableListOf<PointF>()
+        val startX = stroke.start.x * width
+        val startY = stroke.start.y * height
+        result.add(PointF(startX, startY))
+
+        var currentX = startX
+        var currentY = startY
+
+        for (segment in stroke.segments) {
+            when (segment) {
+                is LineTo -> {
+                    val endX = segment.point.x * width
+                    val endY = segment.point.y * height
+                    for (i in 1..samples) {
+                        val t = i.toFloat() / samples
+                        result.add(PointF(
+                            currentX + (endX - currentX) * t,
+                            currentY + (endY - currentY) * t
+                        ))
+                    }
+                    currentX = endX
+                    currentY = endY
+                }
+                is CubicTo -> {
+                    val cx1 = segment.cp1.x * width
+                    val cy1 = segment.cp1.y * height
+                    val cx2 = segment.cp2.x * width
+                    val cy2 = segment.cp2.y * height
+                    val endX = segment.end.x * width
+                    val endY = segment.end.y * height
+                    for (i in 1..samples) {
+                        val t = i.toFloat() / samples
+                        val mt = 1 - t
+                        result.add(PointF(
+                            mt*mt*mt*currentX + 3*mt*mt*t*cx1 + 3*mt*t*t*cx2 + t*t*t*endX,
+                            mt*mt*mt*currentY + 3*mt*mt*t*cy1 + 3*mt*t*t*cy2 + t*t*t*endY
+                        ))
+                    }
+                    currentX = endX
+                    currentY = endY
+                }
+            }
+        }
+        return result
+    }
     // ─────────────────────────────────────────────────────
     // TOUCH
     // ─────────────────────────────────────────────────────
 
+    private var strokeStartX = 0f
+    private var strokeStartY = 0f
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
+                strokeStartX = event.x
+                strokeStartY = event.y
                 userPath.moveTo(event.x, event.y)
             }
-            MotionEvent.ACTION_MOVE -> {
-                userPath.lineTo(event.x, event.y)
-            }
+            MotionEvent.ACTION_MOVE -> userPath.lineTo(event.x, event.y)
             MotionEvent.ACTION_UP -> {
                 userPath.lineTo(event.x, event.y)
-                if (currentMode == Mode.LEARN) {
-                    validateStroke(event.x, event.y)
-                }
+                if (currentMode == Mode.LEARN) validateStroke(event.x, event.y, strokeStartX, strokeStartY)
             }
         }
         invalidate()
@@ -221,49 +304,31 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
     // STROKE VALIDATION
     // ─────────────────────────────────────────────────────
 
-    /**
-     * Validates the user's stroke against the expected stroke.
-     *
-     * Checks:
-     * 1. Did the user start near the expected start point? (within tolerance)
-     * 2. Did the user end near the expected end point? (within tolerance)
-     *
-     * Both must pass for the stroke to be accepted.
-     * This is more robust than the original which only checked one endpoint.
-     */
-    private fun validateStroke(endX: Float, endY: Float) {
+    private fun validateStroke(endX: Float, endY: Float, startX: Float, startY: Float) {
+        if (isTransitioning) return
+
         val letter = currentLetter ?: return
         if (currentStrokeIndex >= letter.strokes.size) return
+        android.util.Log.d("STROKE", "Validating stroke $currentStrokeIndex, endX=$endX endY=$endY, expectedEnd=${getScaledEndpoints(letter.strokes[currentStrokeIndex]).second}")
+
+
 
         val expectedStroke = letter.strokes[currentStrokeIndex]
-        val scaledPoints = scaleStroke(expectedStroke)
-        if (scaledPoints.isEmpty()) return
+        val (expectedStart, expectedEnd) = getScaledEndpoints(expectedStroke)
 
-        val expectedStart = scaledPoints.first()
-        val expectedEnd = scaledPoints.last()
-
-        // Get where the user actually started (first point of their path)
-        // We approximate by checking if their lift-off point is near the expected end
+        val startNearTarget = distance(startX, startY, expectedStart.x, expectedStart.y) <= tolerance
         val endNearTarget = distance(endX, endY, expectedEnd.x, expectedEnd.y) <= tolerance
 
-        if (endNearTarget) {
-            // Stroke accepted!
+        if (startNearTarget && endNearTarget) {
             currentStrokeIndex++
-
-            // Add accepted stroke to scaffold so it stays visible
-            val path = Path()
-            path.moveTo(scaledPoints.first().x, scaledPoints.first().y)
-            scaledPoints.forEach { p -> path.lineTo(p.x, p.y) }
-            // Merge into scaffold
-            scaffoldPath.addPath(path)
-
-            // Clear only the user's live stroke
+            android.util.Log.d("STROKE", "Stroke accepted! currentStrokeIndex is now $currentStrokeIndex")
+            scaffoldPath.addPath(buildPath(expectedStroke))
             userPath.reset()
             invalidate()
 
             if (currentStrokeIndex >= letter.strokes.size) {
-                // All strokes done for this letter!
-                onLetterCompletedListener?.invoke()
+                isTransitioning = true
+                post { onLetterCompletedListener?.invoke() }
             }
         } else {
             userPath.reset()

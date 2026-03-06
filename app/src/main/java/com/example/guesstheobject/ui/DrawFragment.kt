@@ -123,15 +123,21 @@ class DrawFragment : Fragment() {
 
     /** Called by MainActivity's back press handler */
     fun onBackPressed(): Boolean {
-        stopBearTextCycle()
-        if (screenStack.size > 1) {
-            screenStack.removeLast()
-            val previous = screenStack.last()
-            showScreen(previous, addToStack = false)
-            if (previous == "freeMode") startBearTextCycle()
-            return true
+        return if (screenStack.last() == "guessResult") {
+            // If on guess result, go back to free mode canvas
+            stopBearTextCycle()
+            drawView.clear()
+            showScreen("freeMode", addToStack = false)
+            screenStack.clear()
+            screenStack.addLast("freeMode")
+            startBearTextCycle()
+            true
+        } else {
+            // If on free mode canvas, let MainActivity handle it
+            // which will pop DrawFragment and show ModeSelectionFragment
+            stopBearTextCycle()
+            false
         }
-        return false
     }
 
     // ─────────────────────────────────────────────────────
@@ -175,7 +181,9 @@ class DrawFragment : Fragment() {
         btnSend.setOnClickListener {
             stopBearTextCycle()
             txtGuessResult.text = "I think your drawing is ${guessResults.random()}"
-            showScreen("guessResult")
+            screenStack.clear()
+            screenStack.addLast("guessResult")
+            showScreen("guessResult", addToStack = false)
         }
 
         btnDrawAgain.setOnClickListener {
