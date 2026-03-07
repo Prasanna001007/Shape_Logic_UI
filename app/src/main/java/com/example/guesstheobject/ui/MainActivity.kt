@@ -1,6 +1,7 @@
 package com.example.guesstheobject.ui
 
-import ModeSelectionFragment
+
+import androidx.fragment.app.FragmentManager
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.os.Handler
@@ -92,23 +93,26 @@ class MainActivity : AppCompatActivity() {
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    // First, let DrawFragment handle its own internal screen stack
                     val currentFragment = supportFragmentManager
                         .findFragmentById(R.id.flFragment)
 
                     if (currentFragment is DrawFragment && currentFragment.onBackPressed()) {
-                        // DrawFragment consumed the back press (went to previous sub-screen)
                         return
                     }
 
-                    // Otherwise handle at Activity level (go back to main menu)
                     if (supportFragmentManager.backStackEntryCount > 0) {
                         supportFragmentManager.popBackStack()
-                        if (supportFragmentManager.backStackEntryCount == 0) {
-                            binding.mainMenu.visibility = View.VISIBLE
-                            binding.flFragment.visibility = View.GONE
-                            bgMusic.start()
-                        }
+                        supportFragmentManager.addOnBackStackChangedListener(object :
+                            FragmentManager.OnBackStackChangedListener {
+                            override fun onBackStackChanged() {
+                                supportFragmentManager.removeOnBackStackChangedListener(this)
+                                if (supportFragmentManager.backStackEntryCount == 0) {
+                                    binding.mainMenu.visibility = View.VISIBLE
+                                    binding.flFragment.visibility = View.GONE
+                                    bgMusic.start()
+                                }
+                            }
+                        })
                     } else {
                         isEnabled = false
                         onBackPressedDispatcher.onBackPressed()

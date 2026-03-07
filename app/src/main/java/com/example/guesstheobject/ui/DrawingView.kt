@@ -14,7 +14,7 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
     enum class Mode { FREE, LEARN }
 
     private val arrowAnimator = ArrowAnimator(this)
-    private var currentMode = Mode.FREE
+    var currentMode = Mode.FREE
     private var currentLetter: Letter? = null
     private var currentStrokeIndex = 0
     private var isTransitioning = false
