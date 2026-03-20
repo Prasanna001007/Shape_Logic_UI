@@ -21,9 +21,9 @@ object GeminiApiService {
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    private const val API_KEY = "AIzaSyBt3-aXYipijP7iBqqGv2n52feoUNbrbqA"
+    private val API_KEY = ApiKeys.GEMINI
 
-    private const val API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$API_KEY"
+    private  val API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$API_KEY"
 
     suspend fun guessDrawing(bitmap: Bitmap): String {
         return withContext(Dispatchers.IO) {

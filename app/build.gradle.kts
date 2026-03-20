@@ -15,10 +15,12 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "GEMINI_API_KEY", "\"${project.findProperty("GEMINI_API_KEY")}\"")
     }
 
     buildFeatures{
         viewBinding = true
+        buildConfig = true
     }
 
     buildTypes {
