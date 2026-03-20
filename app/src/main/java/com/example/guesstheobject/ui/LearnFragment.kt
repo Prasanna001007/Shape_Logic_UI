@@ -1,145 +1,178 @@
 package com.example.guesstheobject.ui
 
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import com.example.guesstheobject.R
 import com.google.android.material.snackbar.Snackbar
 
-class LearnFragment : Fragment(R.layout.fragment_learn) {
+class LearnFragment : Fragment() {
 
     private lateinit var drawView: DrawingView
     private lateinit var tvLetter: TextView
     private lateinit var tvRoundInfo: TextView
-    private lateinit var btnClear: Button
+
+    private lateinit var screenCanvas: View
+    private lateinit var screenResult: View
+    private lateinit var tvResultTitle: TextView
+    private lateinit var tvOverallScore: TextView
+    private lateinit var tvScoreMessage: TextView
+    private lateinit var tvGoodLetters: TextView
+    private lateinit var tvFocusLetters: TextView
+    private lateinit var btnTryAgain: Button
+    private lateinit var btnBackToMenu: Button
 
     private val progressManager = LearnProgressManager()
+    private val resultManager = LearnResultManager()
+    private val maxRounds = 3
     private var strokeAttempts = 0
 
-    // How many rounds per letter before moving on
-    private val maxRounds = 3
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View = inflater.inflate(R.layout.fragment_learn, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        drawView   = view.findViewById(R.id.learnDrawView)
-        tvLetter   = view.findViewById(R.id.tvLetter)
+        screenCanvas = view.findViewById(R.id.screenCanvas)
+        drawView = view.findViewById(R.id.learnDrawView)
+        tvLetter = view.findViewById(R.id.tvLetter)
         tvRoundInfo = view.findViewById(R.id.tvRoundInfo)
-        btnClear   = view.findViewById(R.id.btnLearnClear)
 
-        drawView.setMode(DrawingView.Mode.LEARN)
+        screenResult = view.findViewById(R.id.screenResult)
+        tvResultTitle = view.findViewById(R.id.tvResultTitle)
+        tvOverallScore = view.findViewById(R.id.tvOverallScore)
+        tvScoreMessage = view.findViewById(R.id.tvScoreMessage)
+        tvGoodLetters = view.findViewById(R.id.tvGoodLetters)
+        tvFocusLetters = view.findViewById(R.id.tvFocusLetters)
+        btnTryAgain = view.findViewById(R.id.btnTryAgain)
+        btnBackToMenu = view.findViewById(R.id.btnBackToMenu)
 
-        btnClear.setOnClickListener {
+        view.findViewById<Button>(R.id.btnLearnClear).setOnClickListener {
             drawView.clearUserStrokesOnly()
+        }
+
+        btnTryAgain.setOnClickListener {
+            progressManager.reset()
+            resultManager.reset()
+            screenResult.visibility = View.GONE
+            screenCanvas.visibility = View.VISIBLE
+            loadLetter()
+        }
+
+        btnBackToMenu.setOnClickListener {
+            parentFragmentManager.popBackStack()
+        }
+
+        drawView.currentMode = DrawingView.Mode.LEARN
+
+        drawView.onLetterCompletedListener = {
+            onLetterCompleted(progressManager.currentLetter)
+        }
+
+        drawView.onStrokeFailedListener = {
+            onStrokeFailed()
         }
 
         loadLetter()
     }
 
-    // ─────────────────────────────────────────────────────
-    // LOAD CURRENT LETTER
-    // ─────────────────────────────────────────────────────
-
     private fun loadLetter() {
-        val letter = LetterStrokeRepository.getLetter(progressManager.currentLetter)
-
-        if (letter == null) {
-            // All letters done
-            Snackbar.make(requireView(), "🎉 Amazing! You finished all letters!", Snackbar.LENGTH_LONG).show()
-            progressManager.reset()
-            loadLetter()
-            return
-        }
-
-        // Update header
+        val letter = LetterStrokeRepository.getLetter(progressManager.currentLetter) ?: return
         tvLetter.text = progressManager.currentLetter.toString()
-        updateRoundInfo()
-
-        // Set letter on canvas with current scaffold level
+        tvRoundInfo.text = "Round ${progressManager.attempt + 1} of $maxRounds"
         drawView.setLearningLetter(letter, progressManager.attempt)
-
-        // Wire up stroke callbacks
-        drawView.onLetterCompletedListener = {
-            strokeAttempts = 0
-            onLetterCompleted(letter)
-        }
-
-        drawView.onStrokeFailedListener = {
-            strokeAttempts++
-            onStrokeFailed()
-        }
+        strokeAttempts = 0
     }
 
-    // ─────────────────────────────────────────────────────
-    // ROUND PROGRESSION
-    // ─────────────────────────────────────────────────────
-
-    /**
-     * Called when the user successfully completes all strokes of the letter.
-     * If rounds remain for this letter, advance the scaffold.
-     * Otherwise move to the next letter.
-     */
-    private fun onLetterCompleted(letter: Letter) {
+    private fun onLetterCompleted(letter: Char) {
+        val letterObj = LetterStrokeRepository.getLetter(letter) ?: return
         val completedTries = progressManager.attempt + 1
 
-        if (completedTries < maxRounds && completedTries < letter.strokes.size) {
-            progressManager.advanceTries(letter)
+        // Calculate accuracy for completed strokes
+        val strokeIndex = (drawView.currentStrokeIndex - 1).coerceAtLeast(0)
+        if (strokeIndex < letterObj.strokes.size) {
+            val accuracy = StrokeAccuracyCalculator.calculate(
+                drawView.currentStrokePoints.toList(),
+                letterObj.strokes[strokeIndex],
+                drawView.width,
+                drawView.height
+            )
+            resultManager.recordAccuracy(letter, accuracy)
+        }
+
+        if (completedTries < maxRounds && completedTries < letterObj.strokes.size) {
+            progressManager.advanceTries(letterObj)
             Snackbar.make(
                 requireView(),
-                "Great! Now try round ${progressManager.attempt + 1} — watch the blue strokes! 💙",
+                "Great! Round ${progressManager.attempt + 1} — fewer dots! 💙",
                 Snackbar.LENGTH_SHORT
             ).show()
             loadLetter()
         } else {
-            progressManager.advanceTries(letter)
-            Snackbar.make(
-                requireView(),
-                "⭐ Well done! Moving to ${getNextLetterChar()}!",
-                Snackbar.LENGTH_SHORT
-            ).show()
-            progressManager.nextLetter()
-            loadLetter()
+            progressManager.advanceTries(letterObj)
+            if (letter == 'I') {
+                showResultScreen()
+            } else {
+                val nextChar = (letter.code + 1).toChar()
+                Snackbar.make(
+                    requireView(),
+                    "⭐ Well done! Moving to $nextChar!",
+                    Snackbar.LENGTH_SHORT
+                ).show()
+                progressManager.nextLetter()
+                if (progressManager.isCompleted) {
+                    showResultScreen()
+                } else {
+                    val nextChar = progressManager.currentLetter
+                    Snackbar.make(
+                        requireView(),
+                        "⭐ Well done! Moving to $nextChar!",
+                        Snackbar.LENGTH_SHORT
+                    ).show()
+                    loadLetter()
+                }
+                loadLetter()
+            }
         }
     }
 
-    /**
-     * Called when the user draws a stroke that doesn't match the expected one.
-     * After 3 failed attempts, skip to next letter.
-     */
+    private fun showResultScreen() {
+        val overall = resultManager.getOverallAccuracy()
+        val goodLetters = resultManager.getGoodLetters()
+        val focusLetters = resultManager.getLettersToFocus()
+
+        tvOverallScore.text = "Overall Score: ${overall.toInt()}%"
+        tvScoreMessage.text = when {
+            overall >= 90 -> "Amazing work! You're a drawing star! ⭐"
+            overall >= 75 -> "Great job! Keep it up! 🎉"
+            overall >= 60 -> "Good effort! Practice makes perfect! 💪"
+            else -> "Keep practicing, you're getting better! 🌟"
+        }
+        tvGoodLetters.text = if (goodLetters.isEmpty()) "Keep practicing!"
+        else goodLetters.joinToString(", ")
+        tvFocusLetters.text = if (focusLetters.isEmpty()) "None — excellent work!"
+        else focusLetters.joinToString(", ")
+
+        screenCanvas.visibility = View.GONE
+        screenResult.visibility = View.VISIBLE
+    }
+
     private fun onStrokeFailed() {
         strokeAttempts++
         val remaining = 3 - strokeAttempts
+        resultManager.recordAccuracy(progressManager.currentLetter, 20f)
         if (remaining > 0) {
-            Snackbar.make(
-                requireView(),
-                "Oops! Try again — $remaining tries left 💪",
-                Snackbar.LENGTH_SHORT
-            ).show()
+            Snackbar.make(requireView(), "Oops! Try again — $remaining tries left 💪", Snackbar.LENGTH_SHORT).show()
         } else {
             strokeAttempts = 0
-            Snackbar.make(
-                requireView(),
-                "No worries, let's try that again! 😊",
-                Snackbar.LENGTH_SHORT
-            ).show()
+            Snackbar.make(requireView(), "No worries, let's try that again! 😊", Snackbar.LENGTH_SHORT).show()
         }
-        // Always clear and stay on same letter, same round
         drawView.clearUserStrokesOnly()
-    }
-    // ─────────────────────────────────────────────────────
-    // UI HELPERS
-    // ─────────────────────────────────────────────────────
-
-    private fun updateRoundInfo() {
-        val round = progressManager.attempt + 1
-        tvRoundInfo.text = "Round $round of $maxRounds"
-    }
-
-    private fun getNextLetterChar(): String {
-        return if (progressManager.currentLetter < 'Z')
-            (progressManager.currentLetter + 1).toString()
-        else "A"
     }
 }

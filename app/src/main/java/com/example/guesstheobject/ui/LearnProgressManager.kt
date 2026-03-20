@@ -21,11 +21,15 @@ class LearnProgressManager {
     }
 
     /** Move to the next letter and reset its try count */
+    var isCompleted = false
+        private set
+
     fun nextLetter() {
-        currentLetter = when (currentLetter) {
-            in 'A'..'Y' -> currentLetter + 1
-            else -> 'A'
+        if (currentLetter == 'I') {
+            isCompleted = true
+            return
         }
+        currentLetter = currentLetter + 1
         triesMap[currentLetter] = 0
     }
 

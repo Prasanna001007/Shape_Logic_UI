@@ -12,6 +12,9 @@ import android.widget.*
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.fragment.app.Fragment
 import com.example.guesstheobject.R
+import android.graphics.Bitmap
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class DrawFragment : Fragment() {
 
@@ -180,10 +183,25 @@ class DrawFragment : Fragment() {
     private fun setupGuessFlow() {
         btnSend.setOnClickListener {
             stopBearTextCycle()
-            txtGuessResult.text = "I think your drawing is ${guessResults.random()}"
-            screenStack.clear()
-            screenStack.addLast("guessResult")
-            showScreen("guessResult", addToStack = false)
+
+            // Show loading state
+            txtBearGuess.text = "Hmm, let me think... 🤔"
+            btnSend.isEnabled = false
+
+            // Capture canvas as bitmap
+            val bitmap = captureCanvas()
+
+            // Call Gemini API
+            lifecycleScope.launch {
+                val result = GeminiApiService.guessDrawing(bitmap)
+
+                // Show result screen
+                txtGuessResult.text = result
+                screenStack.clear()
+                screenStack.addLast("guessResult")
+                showScreen("guessResult", addToStack = false)
+                btnSend.isEnabled = true
+            }
         }
 
         btnDrawAgain.setOnClickListener {
@@ -192,6 +210,21 @@ class DrawFragment : Fragment() {
             startBearTextCycle()
         }
     }
+
+    // helper function
+    private fun captureCanvas(): Bitmap {
+        val bitmap = Bitmap.createBitmap(
+            drawView.width,
+            drawView.height,
+            Bitmap.Config.ARGB_8888
+        )
+        val canvas = android.graphics.Canvas(bitmap)
+        // White background
+        canvas.drawColor(android.graphics.Color.WHITE)
+        drawView.draw(canvas)
+        return bitmap
+    }
+
 
     // ─────────────────────────────────────────────────────
     // BEAR TEXT CYCLING

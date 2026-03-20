@@ -16,11 +16,11 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
     private val arrowAnimator = ArrowAnimator(this)
     var currentMode = Mode.FREE
     private var currentLetter: Letter? = null
-    private var currentStrokeIndex = 0
+     var currentStrokeIndex = 0
     private var isTransitioning = false
 
     // Tolerance in pixels for stroke endpoint validation
-    private val tolerance = 60f
+    private val tolerance = 80f
 
     // ── Paint for user drawing ────────────────────────────
     private val userPaint = Paint().apply {
@@ -283,16 +283,29 @@ class DrawingView(context: Context, attrs: AttributeSet) : View(context, attrs) 
     private var strokeStartX = 0f
     private var strokeStartY = 0f
 
+
+    val currentStrokePoints = mutableListOf<PointF>()
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 strokeStartX = event.x
                 strokeStartY = event.y
                 userPath.moveTo(event.x, event.y)
+                currentStrokePoints.clear()
+                currentStrokePoints.add(PointF(event.x, event.y))
             }
-            MotionEvent.ACTION_MOVE -> userPath.lineTo(event.x, event.y)
+
+// In ACTION_MOVE, also record points:
+            MotionEvent.ACTION_MOVE -> {
+                userPath.lineTo(event.x, event.y)
+                currentStrokePoints.add(PointF(event.x, event.y))
+            }
+
+// In ACTION_UP, also record last point:
             MotionEvent.ACTION_UP -> {
                 userPath.lineTo(event.x, event.y)
+                currentStrokePoints.add(PointF(event.x, event.y))
                 if (currentMode == Mode.LEARN) validateStroke(event.x, event.y, strokeStartX, strokeStartY)
             }
         }
