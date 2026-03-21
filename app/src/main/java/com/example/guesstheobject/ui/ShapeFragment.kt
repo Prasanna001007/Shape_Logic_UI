@@ -7,13 +7,26 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import com.example.guesstheobject.R
 import com.google.android.material.snackbar.Snackbar
 
+
 class ShapeFragment : Fragment() {
 
+
+    private val resultManager = LearnResultManager()
+    private lateinit var screenCanvas: View
+    private lateinit var screenResult: View
+    private lateinit var tvResultTitle: TextView
+    private lateinit var tvOverallScore: TextView
+    private lateinit var tvScoreMessage: TextView
+    private lateinit var tvGoodLetters: TextView
+    private lateinit var tvFocusLetters: TextView
+    private lateinit var btnTryAgain: Button
+    private lateinit var btnBackToMenu: Button
     private lateinit var drawView: DrawingView
     private lateinit var tvShapeName: TextView
     private lateinit var tvRoundInfo: TextView
@@ -35,10 +48,36 @@ class ShapeFragment : Fragment() {
         tvShapeName = view.findViewById(R.id.tvShapeName)
         tvRoundInfo = view.findViewById(R.id.tvShapeRoundInfo)
         shapePreview = view.findViewById(R.id.shapePreview)
+        screenCanvas = view.findViewById(R.id.screenCanvas)
+        screenResult = view.findViewById(R.id.screenResult)
+        tvResultTitle = view.findViewById(R.id.tvResultTitle)
+        tvOverallScore = view.findViewById(R.id.tvOverallScore)
+        tvScoreMessage = view.findViewById(R.id.tvScoreMessage)
+        tvGoodLetters = view.findViewById(R.id.tvGoodLetters)
+        tvFocusLetters = view.findViewById(R.id.tvFocusLetters)
+        btnTryAgain = view.findViewById(R.id.btnTryAgain)
+        btnBackToMenu = view.findViewById(R.id.btnBackToMenu)
 
-        view.findViewById<View>(R.id.btnShapeClear).setOnClickListener {
-            drawView.clearUserStrokesOnly()
+        view.findViewById<Button>(R.id.btnEvaluate).setOnClickListener {
+            if (resultManager.getOverallAccuracy() == 0f) {
+                Snackbar.make(requireView(), "Draw at least one letter first! ✏️", Snackbar.LENGTH_SHORT).show()
+            } else {
+                showResultScreen()
+            }
         }
+
+        btnTryAgain.setOnClickListener {
+            progressManager.reset()
+            resultManager.reset()
+            screenResult.visibility = View.GONE
+            screenCanvas.visibility = View.VISIBLE
+            loadShape()
+        }
+
+        btnBackToMenu.setOnClickListener {
+            parentFragmentManager.popBackStack()
+        }
+
 
         drawView.currentMode = DrawingView.Mode.LEARN
 
@@ -72,47 +111,80 @@ class ShapeFragment : Fragment() {
     private fun onShapeCompleted(shape: Shape) {
         val completedTries = progressManager.attempt + 1
 
+        // Record accuracy
+        val asLetter = shape.toLetterCompat()
+        val strokeIndex = (drawView.currentStrokeIndex - 1).coerceAtLeast(0)
+        if (strokeIndex < asLetter.strokes.size) {
+            val accuracy = StrokeAccuracyCalculator.calculate(
+                drawView.currentStrokePoints.toList(),
+                asLetter.strokes[strokeIndex],
+                drawView.width,
+                drawView.height
+            )
+            resultManager.recordAccuracy(shape.name.first(), accuracy)
+        }
+
         if (completedTries < maxRounds && completedTries < shape.strokes.size) {
             progressManager.advanceTries(shape)
             Snackbar.make(
                 requireView(),
-                "Great! Round ${progressManager.attempt + 1} — fewer dots this time! 💙",
+                "Great! Round ${progressManager.attempt + 1} — fewer dots! 💙",
                 Snackbar.LENGTH_SHORT
             ).show()
             loadShape()
         } else {
             progressManager.advanceTries(shape)
-            val next = getNextShapeName()
-            Snackbar.make(
-                requireView(),
-                "⭐ Amazing! Moving to $next!",
-                Snackbar.LENGTH_SHORT
-            ).show()
             progressManager.nextShape()
-            loadShape()
+            if (progressManager.isCompleted) {
+                showResultScreen()
+            } else {
+                Snackbar.make(
+                    requireView(),
+                    "⭐ Amazing! Moving to ${progressManager.currentShape.name}!",
+                    Snackbar.LENGTH_SHORT
+                ).show()
+                loadShape()
+            }
         }
     }
+    private fun showResultScreen() {
+        val overall = resultManager.getOverallAccuracy()
 
+        tvResultTitle.text = "You finished all shapes!"
+        tvOverallScore.text = "Overall Score: ${overall.toInt()}%"
+        tvScoreMessage.text = when {
+            overall >= 90 -> "Amazing work! You're a drawing star! ⭐"
+            overall >= 75 -> "Great job! Keep it up! 🎉"
+            overall >= 60 -> "Good effort! Practice makes perfect! 💪"
+            else -> "Keep practicing, you're getting better! 🌟"
+        }
+
+        val goodShapes = ShapeRepository.shapes
+            .filter { resultManager.getAccuracy(it.name.first()) >= 75f }
+            .joinToString(", ") { it.name }
+
+        val focusShapes = ShapeRepository.shapes
+            .filter { resultManager.getAccuracy(it.name.first()) < 75f }
+            .joinToString(", ") { it.name }
+
+        tvGoodLetters.text = if (goodShapes.isEmpty()) "Keep practicing!" else goodShapes
+        tvFocusLetters.text = if (focusShapes.isEmpty()) "None — excellent!" else focusShapes
+
+        screenCanvas.visibility = View.GONE
+        screenResult.visibility = View.VISIBLE
+    }
     private fun onStrokeFailed() {
         strokeAttempts++
         val remaining = 3 - strokeAttempts
+        resultManager.recordAccuracy(progressManager.currentShape.name.first(), 20f)
         if (remaining > 0) {
-            Snackbar.make(
-                requireView(),
-                "Oops! Try again — $remaining tries left 💪",
-                Snackbar.LENGTH_SHORT
-            ).show()
+            Snackbar.make(requireView(), "Oops! Try again — $remaining tries left 💪", Snackbar.LENGTH_SHORT).show()
         } else {
             strokeAttempts = 0
-            Snackbar.make(
-                requireView(),
-                "No worries, let's try that again! 😊",
-                Snackbar.LENGTH_SHORT
-            ).show()
+            Snackbar.make(requireView(), "No worries, let's try that again! 😊", Snackbar.LENGTH_SHORT).show()
         }
         drawView.clearUserStrokesOnly()
     }
-
     private fun getNextShapeName(): String {
         val shapes = ShapeRepository.shapes
         val currentIndex = shapes.indexOfFirst { it.name == progressManager.currentShape.name }

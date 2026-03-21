@@ -19,7 +19,7 @@
             android:id="@+id/loadingImage"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:src="@drawable/finalhomescreen"
+            android:src="@drawable/shapelogicloadingscreennew"
             android:scaleType="fitCenter"
             android:contentDescription="Loading background"/>
 

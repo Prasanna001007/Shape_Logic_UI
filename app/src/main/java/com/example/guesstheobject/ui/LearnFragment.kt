@@ -52,9 +52,12 @@ class LearnFragment : Fragment() {
         tvFocusLetters = view.findViewById(R.id.tvFocusLetters)
         btnTryAgain = view.findViewById(R.id.btnTryAgain)
         btnBackToMenu = view.findViewById(R.id.btnBackToMenu)
-
-        view.findViewById<Button>(R.id.btnLearnClear).setOnClickListener {
-            drawView.clearUserStrokesOnly()
+        view.findViewById<Button>(R.id.btnEvaluate).setOnClickListener {
+            if (resultManager.getOverallAccuracy() == 0f) {
+                Snackbar.make(requireView(), "Draw at least one letter first! ✏️", Snackbar.LENGTH_SHORT).show()
+            } else {
+                showResultScreen()
+            }
         }
 
         btnTryAgain.setOnClickListener {

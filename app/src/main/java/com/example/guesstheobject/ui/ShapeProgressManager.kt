@@ -10,16 +10,19 @@ class ShapeProgressManager {
 
     val attempt: Int get() = triesMap[currentShape.name] ?: 0
 
+    var isCompleted = false
+        private set
+
     fun advanceTries(shape: Shape) {
         triesMap[shape.name] = (triesMap[shape.name] ?: 0) + 1
     }
 
     fun nextShape() {
-        if (currentIndex < ShapeRepository.shapes.size - 1) {
-            currentIndex++
-        } else {
-            currentIndex = 0 // loop back to start
+        if (currentIndex >= ShapeRepository.shapes.size - 1) {
+            isCompleted = true
+            return
         }
+        currentIndex++
         triesMap.clear()
     }
 
